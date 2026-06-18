@@ -307,6 +307,9 @@ body {
 .art:hover::after { opacity: 1; }
 .btn.back  { background: linear-gradient(135deg, #B79CED, #9B7BE0); --btn-shadow:#7C5FC4; font-size: clamp(15px,1.6vw,19px); padding: 14px 24px; }
 .btn.replay{ background: linear-gradient(135deg, #54D6A6, #2FBF8B); --btn-shadow:#1E9E72; }
+.btn.play  { background: linear-gradient(135deg, #54D6A6, #2FBF8B); --btn-shadow:#1E9E72;
+             font-size: clamp(15px,1.6vw,19px); padding: 14px 24px; min-width: 124px; }
+.btn.play.paused { background: linear-gradient(135deg, #FFC24B, #FF9F1C); --btn-shadow:#D9821A; }
 
 /* ===================== Cover & Finale overlays ===================== */
 .overlay {

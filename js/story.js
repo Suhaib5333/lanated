@@ -7,7 +7,7 @@
    ===================================================================== */
 
 /* outfit presets so Lana stays recognisable but changes clothes */
-const GI      = { top: '#FFFFFF', bottom: '#F2F2F2', belt: '#7A4DD0' };   // jujitsu gi
+const GI      = { top: '#FFFFFF', bottom: '#EFEFF4', belt: '#E6E6EE', stripes: 3 };   // gi + white belt, 3 stripes
 const PJS     = { top: '#FFD7EC', bottom: '#FFC0E0' };                    // pyjamas
 const LEO     = { top: '#FF8AB5', bottom: '#FF8AB5' };                    // leotard
 const PLAY    = { top: '#FF6FA5', bottom: '#6CC4F5' };                    // everyday
@@ -47,7 +47,7 @@ const SCENES = [
         <path d="M240 240 a130 130 0 0 1 260 0" fill="none" stroke="#79C2FF" stroke-width="22"/>
       </g>
       <g class="idle-bob">${lana({ x: 420, y: 600, s: 1.45, ...PLAY })}</g>
-      <g class="idle-bob slow">${ted({ x: 620, y: 600, s: 1.35, shirt: TED_PJS })}</g>
+      <g class="idle-bob slow">${ted({ x: 620, y: 600, s: 1.35 })}</g>
       ${star(150, 150, 22)} ${star(860, 120, 26)} ${heart(820, 320, 20)} ${star(90, 420, 18)}
     `,
     lines: [
@@ -64,7 +64,7 @@ const SCENES = [
       <circle cx="500" cy="250" r="120" fill="#FFE9A8" opacity=".7"/>
       <path d="M0 620 Q500 560 1000 620 V700 H0 Z" fill="#BFE9CC"/>
       <g class="idle-bob">${lana({ x: 400, y: 610, s: 1.45, ...PLAY })}</g>
-      <g class="idle-bob slow">${ted({ x: 610, y: 610, s: 1.3, shirt: TED_PJS, arms: 'up' })}</g>
+      <g class="idle-bob slow">${ted({ x: 610, y: 610, s: 1.3, arms: 'up' })}</g>
       ${heart(500, 360, 30)} ${heart(470, 330, 16)} ${heart(540, 340, 18)}
     `,
     lines: [
@@ -85,20 +85,21 @@ const SCENES = [
       <rect x="120" y="470" width="760" height="210" rx="24" fill="#9CD3F0" opacity=".55"/>
       <rect x="120" y="470" width="760" height="210" rx="24" fill="none" stroke="#fff" stroke-width="8"/>
       <!-- banner -->
-      <rect x="330" y="70" width="340" height="80" rx="16" fill="#7A4DD0"/>
-      <text x="500" y="123" text-anchor="middle" font-family="Baloo 2, sans-serif"
-            font-size="40" font-weight="800" fill="#fff">DOJO</text>
+      <rect x="250" y="66" width="500" height="78" rx="18" fill="#7A4DD0"/>
+      <rect x="250" y="66" width="500" height="78" rx="18" fill="none" stroke="#fff" stroke-width="4" opacity=".7"/>
+      <text x="500" y="117" text-anchor="middle" font-family="Baloo 2, sans-serif"
+            font-size="38" font-weight="800" fill="#fff">Jujitsu Academy</text>
       <g class="idle-bob">${lana({ x: 380, y: 600, s: 1.45, ...GI })}</g>
       <g class="idle-bob slow">${ted({ x: 630, y: 600, s: 1.2, arms: 'up' })}</g>
       ${star(180, 220, 20)} ${star(820, 200, 22)}
-      <!-- belt on ted -->
-      <rect x="588" y="492" width="86" height="12" rx="6" fill="#7A4DD0" transform="rotate(0 630 498)"/>
+      <!-- Ted's beginner white belt -->
+      <rect x="588" y="494" width="86" height="12" rx="6" fill="#EDEDF3" stroke="#C9C9D6" stroke-width="1.5"/>
     `,
     lines: [
       { who: 'narrator', text: "On Tuesday, Lana took Ted to her jujitsu class and introduced him to her coach." },
       { who: 'lana', text: "This is my coach, Ted! Today I'll teach you some cool moves." },
-      { who: 'ted',  text: "Ooh! Do I get a purple belt like you? Hi-YA!" },
-      { who: 'lana', text: "Hee hee, almost! Bend your knees and be strong like a little bear." },
+      { who: 'ted',  text: "Ooh! Will I get a white belt with three stripes like yours? Hi-YA!" },
+      { who: 'lana', text: "Hee hee, almost! Practise lots and you'll earn your stripes too!" },
       { who: 'ted',  text: "Look at me! I learned a brand new move! That was tough AND fun!" }
     ]
   },
@@ -123,7 +124,7 @@ const SCENES = [
         ${[-50, 10, 55].map(px => `<circle cx="${px}" cy="-4" r="6" fill="#7BB661"/>`).join('')}
       </g>
       <g class="idle-bob">${lana({ x: 280, y: 640, s: 1.3, ...PLAY })}</g>
-      <g class="idle-bob slow">${ted({ x: 720, y: 640, s: 1.18, shirt: TED_PJS })}</g>
+      <g class="idle-bob slow">${ted({ x: 720, y: 640, s: 1.18 })}</g>
       ${star(160, 160, 22)} ${star(840, 180, 20)}
     `,
     lines: [
@@ -152,7 +153,7 @@ const SCENES = [
         `<rect x="${74 + c * 33}" y="${312 + r * 74}" width="26" height="58" rx="4"
                fill="${['#FF7E91','#FFD23F','#54D6A6','#79C2FF'][(r + c) % 4]}"/>`).join('')).join('')}
       <g class="idle-bob">${lana({ x: 400, y: 560, s: 1.4, ...PJS })}</g>
-      <g class="idle-bob slow">${ted({ x: 610, y: 560, s: 1.18, shirt: TED_PJS })}</g>
+      <g class="idle-bob slow">${ted({ x: 610, y: 560, s: 1.18 })}</g>
       <!-- the favourite book -->
       <g transform="translate(500 470) rotate(-6)">
         <rect x="-46" y="-34" width="92" height="64" rx="6" fill="#fff" stroke="#FFB0C8" stroke-width="4"/>
@@ -181,29 +182,45 @@ const SCENES = [
       <circle cx="840" cy="150" r="64" fill="#FFE9A8"/>
       <circle cx="815" cy="135" r="64" fill="#5B4E9E"/>
       <!-- bed -->
-      <rect x="120" y="430" width="760" height="200" rx="28" fill="#7E6FC0"/>
-      <rect x="120" y="430" width="760" height="60" rx="28" fill="#9A8AD8"/>
-      <rect x="150" y="470" width="700" height="150" rx="22" fill="#D7CCF5"/>
-      <!-- pillows -->
-      <rect x="180" y="450" width="150" height="90" rx="22" fill="#fff"/>
-      <!-- Lana sleeping head -->
-      <g transform="translate(300 470)">
-        <circle cx="0" cy="0" r="40" fill="${SKIN}"/>
-        <circle cx="-30" cy="-22" r="22" fill="${HAIR}"/>
-        <circle cx="30"  cy="-22" r="22" fill="${HAIR}"/>
-        <path d="M-30 -8 Q-18 -30 0 -28 Q18 -30 30 -8 Q18 -20 0 -18 Q-18 -20 -30 -8Z" fill="${HAIR}"/>
-        <path d="M-18 2 q6 5 12 0" stroke="${HAIR}" stroke-width="3.4" fill="none" stroke-linecap="round"/>
-        <path d="M8 2 q6 5 12 0" stroke="${HAIR}" stroke-width="3.4" fill="none" stroke-linecap="round"/>
-        <circle cx="-22" cy="14" r="7" fill="${CHEEK}" opacity=".5"/>
-        <circle cx="22"  cy="14" r="7" fill="${CHEEK}" opacity=".5"/>
+      <rect x="60"  y="560" width="880" height="96" rx="16" fill="#6E5EAE"/>
+      <rect x="60"  y="430" width="64" height="180" rx="16" fill="#9A8AD8"/>
+      <rect x="876" y="470" width="64" height="140" rx="16" fill="#9A8AD8"/>
+      <rect x="110" y="478" width="820" height="120" rx="22" fill="#D7CCF5"/>
+      <!-- pillow -->
+      <g transform="translate(255 472) rotate(-6)"><rect x="-112" y="-46" width="224" height="94" rx="36" fill="#fff"/></g>
+
+      <!-- Lana's shoulder/body (under the blanket later) -->
+      <ellipse cx="305" cy="524" rx="96" ry="50" fill="#FFC0E0"/>
+
+      <!-- Lana lying on the pillow, fast asleep, facing Ted -->
+      <g transform="translate(300 452)">
+        <g fill="${HAIR}">
+          <circle cx="-4" cy="-30" r="48"/>
+          <circle cx="-40" cy="-46" r="30"/><circle cx="32" cy="-50" r="28"/>
+          <circle cx="-60" cy="-16" r="28"/><circle cx="-30" cy="-60" r="26"/>
+          <circle cx="4" cy="-60" r="26"/><circle cx="-60" cy="12" r="22"/>
+        </g>
+        <circle cx="8" cy="-4" r="43" fill="${SKIN}"/>
+        <path d="M16 -10 q9 7 18 0" stroke="${HAIR}" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+        <path d="M-14 -8 q7 6 14 0" stroke="${HAIR}" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <circle cx="24" cy="10" r="7" fill="${CHEEK}" opacity=".55"/>
+        <path d="M16 16 q10 7 20 1" stroke="${MOUTH}" stroke-width="3.4" fill="none" stroke-linecap="round"/>
       </g>
-      <!-- Ted tucked beside her -->
-      <g transform="translate(470 500) scale(.8)">${ted({ x: 0, y: 0, s: 1, eyesOpen: false, shirt: TED_PJS })}</g>
-      <!-- blanket over the bed -->
-      <path d="M150 560 Q500 520 850 560 L850 620 Q500 640 150 620 Z" fill="#A38FE6"/>
-      <text x="640" y="300" font-family="Baloo 2, sans-serif" font-size="60" fill="#fff" opacity=".8">z</text>
-      <text x="690" y="250" font-family="Baloo 2, sans-serif" font-size="44" fill="#fff" opacity=".7">z</text>
-      <text x="730" y="210" font-family="Baloo 2, sans-serif" font-size="30" fill="#fff" opacity=".6">z</text>
+
+      <!-- Ted cuddled in her arms (her stuffed animal) -->
+      <g transform="translate(498 520) scale(.72)">${ted({ x: 0, y: 0, s: 1, eyesOpen: false })}</g>
+
+      <!-- blanket tucked over them both -->
+      <path d="M150 556 Q510 512 894 556 L894 616 Q510 642 150 616 Z" fill="#8E79D8"/>
+      <path d="M150 556 Q510 512 894 556 L890 574 Q510 530 154 574 Z" fill="#AC99EC"/>
+
+      <!-- Lana's arm hugging Ted close -->
+      <path d="M352 496 Q470 470 556 520" stroke="${SKIN}" stroke-width="26" fill="none" stroke-linecap="round"/>
+      <circle cx="560" cy="522" r="15" fill="${SKIN}"/>
+
+      <text x="660" y="320" font-family="Baloo 2, sans-serif" font-size="58" fill="#fff" opacity=".8">z</text>
+      <text x="708" y="272" font-family="Baloo 2, sans-serif" font-size="42" fill="#fff" opacity=".7">z</text>
+      <text x="746" y="234" font-family="Baloo 2, sans-serif" font-size="30" fill="#fff" opacity=".6">z</text>
     `,
     lines: [
       { who: 'narrator', text: "Lana and Ted cuddled in bed, said goodnight, and had the coziest sleep." },
@@ -259,7 +276,7 @@ const SCENES = [
       </g>
       <path d="M0 600 Q500 540 1000 600 V700 H0 Z" fill="#BFE9CC"/>
       <g class="idle-bob">${lana({ x: 420, y: 610, s: 1.5, ...PLAY })}</g>
-      <g class="idle-bob slow">${ted({ x: 620, y: 610, s: 1.35, shirt: TED_PJS, arms: 'up' })}</g>
+      <g class="idle-bob slow">${ted({ x: 620, y: 610, s: 1.35, arms: 'up' })}</g>
       ${heart(500, 430, 34)} ${heart(460, 400, 18)} ${heart(545, 410, 20)}
       ${star(150, 200, 24)} ${star(850, 220, 24)} ${star(120, 460, 16)} ${star(880, 470, 16)}
     `,

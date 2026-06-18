@@ -39,7 +39,7 @@ function loadScenes() {
 /* --- voice casting --- */
 const VOICES = {
   lana:     { id: 'cgSgspJ2msm6clMCkdW9', stability: 0.32, similarity: 0.80, style: 0.50, pitch: 1.15 }, // Jessica
-  ted:      { id: 'nPczCjzI2devNBz1zQrb', stability: 0.55, similarity: 0.85, style: 0.18, pitch: 0.84 }, // Brian
+  ted:      { id: 'IKne3meq5aSn9XLyUdCD', stability: 0.42, similarity: 0.80, style: 0.50, pitch: 1.30 }, // Charlie, pitched up — friendly, cartoony teddy (~188Hz)
   narrator: { id: 'JBFqnCBsd6RMkjVDRZzb', stability: 0.50, similarity: 0.80, style: 0.30, pitch: 1.00 }, // George
 };
 const MODEL = 'eleven_multilingual_v2';

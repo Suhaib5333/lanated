@@ -24,6 +24,7 @@ const App = {
       next:    $('#btnNext'),
       back:    $('#btnBack'),
       replay:  $('#btnReplay'),
+      play:    $('#btnPlay'),
       sound:   $('#btnSound'),
       photos:  $('#btnPhotos'),
       cover:   $('#cover'),
@@ -37,11 +38,12 @@ const App = {
     const cov = $('#coverArt');
     if (cov) cov.innerHTML =
       `<g class="idle-bob">${lana({ x: 130, y: 290, s: 0.85, top: '#FF6FA5', bottom: '#6CC4F5' })}</g>
-       <g class="idle-bob slow">${ted({ x: 250, y: 290, s: 0.8, shirt: { base: '#C24B5E', stripe: '#FBE3DC' }, arms: 'up' })}</g>`;
+       <g class="idle-bob slow">${ted({ x: 250, y: 290, s: 0.8, arms: 'up' })}</g>`;
 
     this.els.next.addEventListener('click', () => this.go(this.i + 1));
     this.els.back.addEventListener('click', () => this.go(this.i - 1));
     this.els.replay.addEventListener('click', () => this.playScene());
+    this.els.play.addEventListener('click', () => this.togglePlay());
     this.els.sound.addEventListener('click', () => this.toggleSound());
     this.els.photos.addEventListener('click', () => this.showPhotos());
     $('#startBtn').addEventListener('click', () => this.start());
@@ -152,6 +154,7 @@ const App = {
       if (this.i !== this._playingScene) return;
       if (k >= sc.lines.length) {            // finished reading the page
         this.clearSpeaking();
+        this.setPlayBtn(false);
         if (this.i < SCENES.length - 1) this.els.next.classList.add('ready');
         return;
       }
@@ -161,7 +164,19 @@ const App = {
       });
     };
     this._playingScene = this.i;
+    this.setPlayBtn(true);
     next();
+  },
+
+  togglePlay() {
+    if (Voices.isPaused())  { Voices.resume(); this.setPlayBtn(true);  return; }
+    if (Voices.isActive())  { Voices.pause();  this.setPlayBtn(false); return; }
+    this.playScene();       // nothing playing → start this page
+  },
+  setPlayBtn(playing) {
+    if (!this.els.play) return;
+    this.els.play.classList.toggle('paused', !playing);
+    this.els.play.innerHTML = playing ? '⏸ Pause' : '▶ Play';
   },
 
   /* speak a single tapped line */
@@ -187,7 +202,7 @@ const App = {
     Voices.setEnabled(on);
     this.els.sound.classList.toggle('is-off', !on);
     this.els.sound.textContent = on ? '🔊' : '🔇';
-    if (on) this.playScene(); else this.clearSpeaking();
+    if (on) this.playScene(); else { this.clearSpeaking(); this.setPlayBtn(false); }
   },
 
   showPhotos() {

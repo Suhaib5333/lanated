@@ -79,12 +79,29 @@ const Voices = (() => {
   }
 
   function stop() {
+    paused = false;
     if (current) { try { current.pause(); current.currentTime = 0; } catch (e) {} current = null; }
     if (window.speechSynthesis) speechSynthesis.cancel();
   }
+
+  let paused = false;
+  function pause() {
+    if (current && !current.paused) { try { current.pause(); } catch (e) {} paused = true; }
+    else if (window.speechSynthesis && speechSynthesis.speaking) { speechSynthesis.pause(); paused = true; }
+  }
+  function resume() {
+    if (current && current.paused) { current.play().catch(() => {}); paused = false; }
+    else if (window.speechSynthesis && speechSynthesis.paused) { speechSynthesis.resume(); paused = false; }
+  }
+  function isPaused() { return paused; }
+  function isActive() {
+    if (current && !current.paused) return true;
+    return !!(window.speechSynthesis && speechSynthesis.speaking && !speechSynthesis.paused);
+  }
+
   function setEnabled(v) { enabled = v; if (!v) stop(); }
   function isEnabled() { return enabled; }
   function isSupported() { return true; }   // audio always available
 
-  return { play, stop, setEnabled, isEnabled, isSupported };
+  return { play, stop, pause, resume, isPaused, isActive, setEnabled, isEnabled, isSupported };
 })();
