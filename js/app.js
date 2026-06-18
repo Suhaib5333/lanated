@@ -165,17 +165,18 @@ const App = {
       if (this.i !== this._playingScene) return;
       if (k >= sc.lines.length) {            // finished reading the page
         this.clearSpeaking();
-        this.setPlayBtn(false);
-        if (this.i < SCENES.length - 1) {
-          this.els.next.classList.add('ready');
-          if (this.autoAdvance) {           // turn the page by itself
-            const finished = this.i;
-            clearTimeout(this._autoTimer);
-            this._autoTimer = setTimeout(() => {
-              if (this.autoAdvance && this.i === finished && !Voices.isActive() && !Voices.isPaused())
-                this.go(this.i + 1);
-            }, 1500);
-          }
+        const isLast = this.i >= SCENES.length - 1;
+        if (!isLast) this.els.next.classList.add('ready');
+        if (this.autoAdvance && !isLast) {
+          // keep the story rolling page-to-page — stays "playing", no pause
+          const finished = this.i;
+          clearTimeout(this._autoTimer);
+          this._autoTimer = setTimeout(() => {
+            if (this.autoAdvance && this.i === finished && !Voices.isPaused())
+              this.go(this.i + 1);          // -> render() auto-reads the next page
+          }, 1100);
+        } else {
+          this.setPlayBtn(false);           // manual mode, or the book is finished
         }
         return;
       }

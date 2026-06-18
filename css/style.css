@@ -173,14 +173,23 @@ body {
    RESPONSIVE — phones & tablets, portrait & landscape
    ============================================================ */
 
-/* Portrait (phones, iPad portrait): stack illustration over the chat */
+/* Portrait (phones, iPad portrait): stack illustration over the chat.
+   The art panel matches the illustration's aspect ratio so Lana & Ted
+   are ALWAYS shown in full — never cropped. */
 @media (orientation: portrait) {
   .scene {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(150px, 40vh) 1fr;
+    grid-template-rows: auto 1fr;
     gap: 10px;
   }
-  .art { border-radius: 22px; }
+  .art {
+    border-radius: 22px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1000 / 700;
+    max-height: 46vh;
+    align-self: start;
+  }
 }
 
 /* Tablets / smaller laptops */
