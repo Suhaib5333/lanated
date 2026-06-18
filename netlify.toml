@@ -1,0 +1,10 @@
+# Static site — no build step. Netlify just serves the repo root.
+[build]
+  publish = "."
+  command = ""
+
+# Make sure audio + json are served with sensible caching
+[[headers]]
+  for = "/assets/audio/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
