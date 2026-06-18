@@ -105,7 +105,7 @@ const App = {
     setTimeout(() => {
       this.i = n;
       this.render(true);
-    }, forward ? 240 : 120);
+    }, forward ? 170 : 90);
   },
 
   render(animate) {
@@ -147,8 +147,8 @@ const App = {
 
     // themed sound as the page opens, then auto-read it aloud
     if (this.started) {
-      setTimeout(() => SFX.scene(sc.key), animate ? 320 : 120);
-      setTimeout(() => this.playScene(), animate ? 620 : 360);
+      setTimeout(() => SFX.scene(sc.key), animate ? 180 : 90);
+      setTimeout(() => this.playScene(), animate ? 340 : 220);
     }
   },
 
@@ -174,7 +174,7 @@ const App = {
           this._autoTimer = setTimeout(() => {
             if (this.autoAdvance && this.i === finished && !Voices.isPaused())
               this.go(this.i + 1);          // -> render() auto-reads the next page
-          }, 1100);
+          }, 450);
         } else {
           this.setPlayBtn(false);           // manual mode, or the book is finished
         }
