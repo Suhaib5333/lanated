@@ -19,10 +19,13 @@
 
       <!-- top bar -->
       <header class="topbar">
-        <div class="title-chip"><span class="dot"></span> Ted's Active Week with Lana</div>
+        <div class="title-chip"><span class="dot"></span><span class="ttl">Ted's Active Week with Lana</span></div>
         <div class="spacer"></div>
         <button class="icon-btn" id="btnPhotos" title="See the real photos!" aria-label="See the real photos">📷</button>
         <button class="icon-btn" id="btnSound" title="Sound on/off" aria-label="Toggle sound">🔊</button>
+        <button class="auto-btn is-on" id="btnAuto" title="Auto-play: turn pages by itself" aria-label="Toggle auto-play">
+          <span class="auto-dot"></span><span id="autoLabel">Auto&nbsp;On</span>
+        </button>
       </header>
 
       <!-- scene -->
@@ -73,6 +76,7 @@
 
   <script src="js/characters.js"></script>
   <script src="js/story.js"></script>
+  <script src="js/sfx.js"></script>
   <script src="js/voices.js"></script>
   <script src="js/app.js"></script>
 </body>

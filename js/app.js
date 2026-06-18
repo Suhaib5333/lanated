@@ -12,6 +12,8 @@ const App = {
   lineIdx: -1,          // current spoken line
   playing: false,
   started: false,
+  autoAdvance: true,    // default: read & turn pages automatically
+  _autoTimer: null,
 
   els: {},
 
@@ -25,6 +27,7 @@ const App = {
       back:    $('#btnBack'),
       replay:  $('#btnReplay'),
       play:    $('#btnPlay'),
+      auto:    $('#btnAuto'),
       sound:   $('#btnSound'),
       photos:  $('#btnPhotos'),
       cover:   $('#cover'),
@@ -40,14 +43,15 @@ const App = {
       `<g class="idle-bob">${lana({ x: 130, y: 290, s: 0.85, top: '#FF6FA5', bottom: '#6CC4F5' })}</g>
        <g class="idle-bob slow">${ted({ x: 250, y: 290, s: 0.8, arms: 'up' })}</g>`;
 
-    this.els.next.addEventListener('click', () => this.go(this.i + 1));
-    this.els.back.addEventListener('click', () => this.go(this.i - 1));
-    this.els.replay.addEventListener('click', () => this.playScene());
-    this.els.play.addEventListener('click', () => this.togglePlay());
+    this.els.next.addEventListener('click', () => { SFX.click(); this.go(this.i + 1); });
+    this.els.back.addEventListener('click', () => { SFX.back(); this.go(this.i - 1); });
+    this.els.replay.addEventListener('click', () => { SFX.click(); this.playScene(); });
+    this.els.play.addEventListener('click', () => { SFX.click(); this.togglePlay(); });
+    this.els.auto.addEventListener('click', () => { SFX.click(); this.toggleAuto(); });
     this.els.sound.addEventListener('click', () => this.toggleSound());
-    this.els.photos.addEventListener('click', () => this.showPhotos());
+    this.els.photos.addEventListener('click', () => { SFX.sparkle(); this.showPhotos(); });
     $('#startBtn').addEventListener('click', () => this.start());
-    $('#photoClose').addEventListener('click', () => $('#photoModal').style.display = 'none');
+    $('#photoClose').addEventListener('click', () => { SFX.click(); $('#photoModal').style.display = 'none'; });
 
     // keyboard for grown-ups
     document.addEventListener('keydown', (e) => {
@@ -83,6 +87,8 @@ const App = {
 
   start() {
     this.started = true;
+    SFX.unlock();
+    SFX.start();
     this.els.cover.style.display = 'none';
     this.go(1);
   },
@@ -90,7 +96,9 @@ const App = {
   go(n) {
     n = Math.max(0, Math.min(SCENES.length - 1, n));
     if (n === this.i && this.started) return;
+    clearTimeout(this._autoTimer);
     Voices.stop();
+    if (this.started) SFX.turn();          // page-flip whoosh
     const forward = n >= this.i;
     this.els.scene.classList.remove('flip-in');
     this.els.scene.classList.add('flip-out');
@@ -137,8 +145,11 @@ const App = {
 
     if (sc.finale) this.confetti();
 
-    // auto-read the page aloud
-    if (this.started) setTimeout(() => this.playScene(), animate ? 560 : 300);
+    // themed sound as the page opens, then auto-read it aloud
+    if (this.started) {
+      setTimeout(() => SFX.scene(sc.key), animate ? 320 : 120);
+      setTimeout(() => this.playScene(), animate ? 620 : 360);
+    }
   },
 
   face(who) { return who === 'ted' ? '🧸' : who === 'narrator' ? '📖' : '🌟'; },
@@ -155,7 +166,17 @@ const App = {
       if (k >= sc.lines.length) {            // finished reading the page
         this.clearSpeaking();
         this.setPlayBtn(false);
-        if (this.i < SCENES.length - 1) this.els.next.classList.add('ready');
+        if (this.i < SCENES.length - 1) {
+          this.els.next.classList.add('ready');
+          if (this.autoAdvance) {           // turn the page by itself
+            const finished = this.i;
+            clearTimeout(this._autoTimer);
+            this._autoTimer = setTimeout(() => {
+              if (this.autoAdvance && this.i === finished && !Voices.isActive() && !Voices.isPaused())
+                this.go(this.i + 1);
+            }, 1500);
+          }
+        }
         return;
       }
       this.highlight(k);
@@ -170,8 +191,22 @@ const App = {
 
   togglePlay() {
     if (Voices.isPaused())  { Voices.resume(); this.setPlayBtn(true);  return; }
-    if (Voices.isActive())  { Voices.pause();  this.setPlayBtn(false); return; }
+    if (Voices.isActive())  { clearTimeout(this._autoTimer); Voices.pause(); this.setPlayBtn(false); return; }
     this.playScene();       // nothing playing → start this page
+  },
+
+  toggleAuto() {
+    this.autoAdvance = !this.autoAdvance;
+    this.els.auto.classList.toggle('is-off', !this.autoAdvance);
+    document.getElementById('autoLabel').innerHTML = this.autoAdvance ? 'Auto&nbsp;On' : 'Auto&nbsp;Off';
+    clearTimeout(this._autoTimer);
+    // if turning it on while a finished page is just sitting there, keep going
+    if (this.autoAdvance && this.started && this.i < SCENES.length - 1
+        && !Voices.isActive() && !Voices.isPaused()) {
+      this._autoTimer = setTimeout(() => {
+        if (this.autoAdvance && !Voices.isActive()) this.go(this.i + 1);
+      }, 700);
+    }
   },
   setPlayBtn(playing) {
     if (!this.els.play) return;
@@ -190,6 +225,7 @@ const App = {
 
   highlight(idx) {
     this.clearSpeaking();
+    SFX.pop();   // little pop as each speech bubble lights up
     const b = this.els.talk.querySelector(`.bubble[data-idx="${idx}"]`);
     if (b) { b.classList.add('speaking'); b.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   },
@@ -200,9 +236,11 @@ const App = {
   toggleSound() {
     const on = !Voices.isEnabled();
     Voices.setEnabled(on);
+    SFX.setEnabled(on);
     this.els.sound.classList.toggle('is-off', !on);
     this.els.sound.textContent = on ? '🔊' : '🔇';
-    if (on) this.playScene(); else { this.clearSpeaking(); this.setPlayBtn(false); }
+    if (on) { SFX.unlock(); SFX.blip(1200); this.playScene(); }
+    else    { this.clearSpeaking(); this.setPlayBtn(false); }
   },
 
   showPhotos() {

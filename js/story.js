@@ -259,7 +259,7 @@ const SCENES = [
       { who: 'ted',  text: "Upside-down! Whoaaa — everything looks so funny up here! Wobble, wobble!" },
       { who: 'lana', text: "Careful! The coach is watching. You're doing great!" },
       { who: 'ted',  text: "Oops, I tipped over! The coach says I need more practice. Hee hee!" },
-      { who: 'lana', text: "That's okay, Ted! We'll practice together every day. Don't give up!" }
+      { who: 'lana', text: "That's okay, Ted! The more we practise, the better we get. Don't give up!" }
     ]
   },
 
