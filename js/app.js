@@ -1,0 +1,215 @@
+/* =====================================================================
+   app.js — the storybook engine.
+   Renders scenes, plays the dialogue with character voices, handles
+   Next/Back navigation, the cover, the finale confetti, and the
+   "real photos" reveal.
+   ===================================================================== */
+
+const $ = (sel) => document.querySelector(sel);
+
+const App = {
+  i: 0,                 // current scene index
+  lineIdx: -1,          // current spoken line
+  playing: false,
+  started: false,
+
+  els: {},
+
+  init() {
+    this.els = {
+      scene:   $('#scene'),
+      art:     $('#art'),
+      talk:    $('#talk'),
+      dots:    $('#dots'),
+      next:    $('#btnNext'),
+      back:    $('#btnBack'),
+      replay:  $('#btnReplay'),
+      sound:   $('#btnSound'),
+      photos:  $('#btnPhotos'),
+      cover:   $('#cover'),
+      sky:     $('#sky'),
+    };
+
+    this.buildSky();
+    this.buildDots();
+
+    // charming mini portrait on the cover
+    const cov = $('#coverArt');
+    if (cov) cov.innerHTML =
+      `<g class="idle-bob">${lana({ x: 130, y: 290, s: 0.85, top: '#FF6FA5', bottom: '#6CC4F5' })}</g>
+       <g class="idle-bob slow">${ted({ x: 250, y: 290, s: 0.8, shirt: { base: '#C24B5E', stripe: '#FBE3DC' }, arms: 'up' })}</g>`;
+
+    this.els.next.addEventListener('click', () => this.go(this.i + 1));
+    this.els.back.addEventListener('click', () => this.go(this.i - 1));
+    this.els.replay.addEventListener('click', () => this.playScene());
+    this.els.sound.addEventListener('click', () => this.toggleSound());
+    this.els.photos.addEventListener('click', () => this.showPhotos());
+    $('#startBtn').addEventListener('click', () => this.start());
+    $('#photoClose').addEventListener('click', () => $('#photoModal').style.display = 'none');
+
+    // keyboard for grown-ups
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') this.go(this.i + 1);
+      if (e.key === 'ArrowLeft')  this.go(this.i - 1);
+      if (e.key === ' ')          { e.preventDefault(); this.playScene(); }
+    });
+
+    if (!Voices.isSupported()) this.els.sound.classList.add('is-off');
+
+    this.render(false);   // render cover behind overlay
+  },
+
+  buildSky() {
+    const items = ['⭐','💛','🌸','☁️','🩷','✨','🌈','🧸','💫','🩵'];
+    let html = '';
+    for (let i = 0; i < 16; i++) {
+      const left = Math.round((i * 61) % 100);
+      const d = 16 + (i % 6) * 4;
+      const delay = -(i * 2.3).toFixed(1);
+      const s = 22 + (i % 4) * 12;
+      html += `<span style="left:${left}%;--d:${d}s;--delay:${delay}s;--s:${s}px">${items[i % items.length]}</span>`;
+    }
+    this.els.sky.innerHTML = html;
+  },
+
+  buildDots() {
+    this.els.dots.innerHTML = SCENES.map((_, n) =>
+      `<b data-n="${n}" title="Page ${n + 1}"></b>`).join('');
+    this.els.dots.querySelectorAll('b').forEach(b =>
+      b.addEventListener('click', () => this.go(+b.dataset.n)));
+  },
+
+  start() {
+    this.started = true;
+    this.els.cover.style.display = 'none';
+    this.go(1);
+  },
+
+  go(n) {
+    n = Math.max(0, Math.min(SCENES.length - 1, n));
+    if (n === this.i && this.started) return;
+    Voices.stop();
+    const forward = n >= this.i;
+    this.els.scene.classList.remove('flip-in');
+    this.els.scene.classList.add('flip-out');
+    setTimeout(() => {
+      this.i = n;
+      this.render(true);
+    }, forward ? 240 : 120);
+  },
+
+  render(animate) {
+    const sc = SCENES[this.i];
+
+    // illustration (tap it to hear the page again)
+    this.els.art.innerHTML =
+      `<svg viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice">${sc.art()}</svg>`;
+    this.els.art.onclick = () => this.playScene();
+
+    // the Next button stops glowing until this page is finished reading
+    this.els.next.classList.remove('ready');
+
+    // dialogue (rendered hidden; revealed as spoken)
+    this.els.talk.innerHTML =
+      (sc.heading ? `<h2 class="scene-heading">${sc.heading}</h2>` : '') +
+      sc.lines.map((l, idx) => `
+        <div class="bubble ${l.who}" data-idx="${idx}" style="animation-delay:${idx * 90}ms">
+          <div class="avatar">${this.face(l.who)}<div class="eq"><i></i><i></i><i></i></div></div>
+          <div class="body"><span class="who">${this.name(l.who)}</span>${l.text}</div>
+        </div>`).join('');
+
+    // let parents tap a bubble to hear that line again
+    this.els.talk.querySelectorAll('.bubble').forEach(b =>
+      b.addEventListener('click', () => this.speakOne(+b.dataset.idx)));
+
+    // dots + buttons
+    this.els.dots.querySelectorAll('b').forEach((b, n) => b.classList.toggle('on', n === this.i));
+    this.els.back.disabled = this.i <= 0;
+    this.els.next.disabled = this.i >= SCENES.length - 1;
+    this.els.next.innerHTML = this.i >= SCENES.length - 1 ? 'The End 🎉' : 'Next ▶';
+
+    if (animate) {
+      this.els.scene.classList.remove('flip-out');
+      this.els.scene.classList.add('flip-in');
+    }
+
+    if (sc.finale) this.confetti();
+
+    // auto-read the page aloud
+    if (this.started) setTimeout(() => this.playScene(), animate ? 560 : 300);
+  },
+
+  face(who) { return who === 'ted' ? '🧸' : who === 'narrator' ? '📖' : '🌟'; },
+  name(who) { return who === 'ted' ? 'Ted' : who === 'narrator' ? 'Story' : 'Lana'; },
+
+  /* play every line of the current scene in order */
+  playScene() {
+    Voices.stop();
+    this.clearSpeaking();
+    const sc = SCENES[this.i];
+    let k = 0;
+    const next = () => {
+      if (this.i !== this._playingScene) return;
+      if (k >= sc.lines.length) {            // finished reading the page
+        this.clearSpeaking();
+        if (this.i < SCENES.length - 1) this.els.next.classList.add('ready');
+        return;
+      }
+      this.highlight(k);
+      Voices.play(`${sc.key}-${k}`, sc.lines[k], {
+        onEnd: () => { this.clearSpeaking(); k++; setTimeout(next, 280); }
+      });
+    };
+    this._playingScene = this.i;
+    next();
+  },
+
+  /* speak a single tapped line */
+  speakOne(idx) {
+    Voices.stop();
+    this.clearSpeaking();
+    this.highlight(idx);
+    const sc = SCENES[this.i];
+    Voices.play(`${sc.key}-${idx}`, sc.lines[idx], { onEnd: () => this.clearSpeaking() });
+  },
+
+  highlight(idx) {
+    this.clearSpeaking();
+    const b = this.els.talk.querySelector(`.bubble[data-idx="${idx}"]`);
+    if (b) { b.classList.add('speaking'); b.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  },
+  clearSpeaking() {
+    this.els.talk.querySelectorAll('.bubble.speaking').forEach(b => b.classList.remove('speaking'));
+  },
+
+  toggleSound() {
+    const on = !Voices.isEnabled();
+    Voices.setEnabled(on);
+    this.els.sound.classList.toggle('is-off', !on);
+    this.els.sound.textContent = on ? '🔊' : '🔇';
+    if (on) this.playScene(); else this.clearSpeaking();
+  },
+
+  showPhotos() {
+    $('#photoModal').style.display = 'grid';
+  },
+
+  confetti() {
+    const c = $('#confetti');
+    const colors = ['#FF7E91','#FFD23F','#54D6A6','#79C2FF','#B79CED','#FF9CC9'];
+    let html = '';
+    for (let i = 0; i < 90; i++) {
+      const left = Math.random ? 0 : 0; // Math.random is unavailable in some sandboxes; use deterministic spread
+      const x = (i * 37) % 100;
+      const cd = 2.4 + (i % 5) * 0.5;
+      const delay = (i % 10) * 0.12;
+      const col = colors[i % colors.length];
+      const rot = (i * 23) % 360;
+      html += `<i style="left:${x}%;background:${col};--cd:${cd}s;--cdelay:${delay}s;transform:rotate(${rot}deg)"></i>`;
+    }
+    c.innerHTML = html;
+    setTimeout(() => { c.innerHTML = ''; }, 6000);
+  }
+};
+
+window.addEventListener('DOMContentLoaded', () => App.init());

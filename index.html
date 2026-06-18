@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Ted's Active Week with Lana 🧸</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧸</text></svg>">
+</head>
+<body>
+  <!-- floating decorations -->
+  <div class="sky-deco" id="sky" aria-hidden="true"></div>
+
+  <div class="stage">
+    <div class="book" role="application" aria-label="Ted's Active Week with Lana storybook">
+
+      <!-- top bar -->
+      <header class="topbar">
+        <div class="title-chip"><span class="dot"></span> Ted's Active Week with Lana</div>
+        <div class="spacer"></div>
+        <button class="icon-btn" id="btnPhotos" title="See the real photos!" aria-label="See the real photos">📷</button>
+        <button class="icon-btn" id="btnSound" title="Sound on/off" aria-label="Toggle sound">🔊</button>
+      </header>
+
+      <!-- scene -->
+      <main class="scene" id="scene">
+        <section class="art" id="art" aria-label="Illustration"></section>
+        <section class="talk" id="talk" aria-label="Story text"></section>
+      </main>
+
+      <!-- bottom controls -->
+      <footer class="controls">
+        <button class="btn back" id="btnBack">◀ Back</button>
+        <button class="btn replay" id="btnReplay" title="Read this page again">🔊 Read again</button>
+        <div class="dots" id="dots"></div>
+        <button class="btn next" id="btnNext">Next ▶</button>
+      </footer>
+
+      <!-- COVER overlay -->
+      <div class="overlay" id="cover">
+        <div class="card">
+          <div class="cover-art">
+            <svg viewBox="0 0 360 300" id="coverArt" aria-hidden="true"></svg>
+          </div>
+          <h1 class="cover-title">Ted's Active Week<br/>with Lana</h1>
+          <p class="cover-sub">A true story about a brave little girl<br/>and her very best teddy bear 🧸💖</p>
+          <button class="btn next start-btn" id="startBtn">▶ Read to me!</button>
+        </div>
+      </div>
+
+      <!-- confetti layer -->
+      <div class="confetti" id="confetti" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <!-- REAL PHOTOS modal -->
+  <div class="overlay" id="photoModal" style="display:none; z-index:50; position:fixed;">
+    <div class="card" style="max-width:min(880px,92vw);">
+      <h2 class="scene-heading" style="text-align:center;margin-top:0">The REAL Lana &amp; Ted 💖</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <img src="assets/scrapbook-1.jpeg" alt="Lana and Ted's scrapbook page 1" style="width:100%;border-radius:18px;box-shadow:var(--shadow-sm)"/>
+        <img src="assets/scrapbook-2.jpeg" alt="Lana and Ted's scrapbook page 2" style="width:100%;border-radius:18px;box-shadow:var(--shadow-sm)"/>
+      </div>
+      <div style="text-align:center;margin-top:18px;">
+        <button class="btn replay" id="photoClose">Back to the story</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/characters.js"></script>
+  <script src="js/story.js"></script>
+  <script src="js/voices.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

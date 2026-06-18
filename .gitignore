@@ -1,0 +1,11 @@
+# Secrets — never commit the ElevenLabs API key
+tools/.key
+.env
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.playwright-mcp/
+
+# transient raw audio
+assets/audio/_raw_*.mp3
