@@ -430,6 +430,8 @@ body {
   padding: 18px 42px;
 }
 .cover-art { width: min(420px, 70%); margin: 0 auto 8px; }
+.cover-hint { margin: 16px 0 0; font-size: clamp(13px, 1.7vw, 16px); font-weight: 700; color: var(--ink-soft); opacity: .9; }
+#cover { cursor: pointer; }   /* the whole cover is tappable to begin */
 
 /* confetti pieces */
 .confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 25; }

@@ -64,13 +64,16 @@ const App = {
 
     this.render(false);   // render cover behind overlay
 
-    // ZERO-CLICK: begin the whole story automatically a moment after load.
-    // (If the browser allows audio autoplay it plays with sound; if not,
-    //  the story still flows visually and any incidental interaction
-    //  unlocks the sound.)
-    ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
-      document.addEventListener(ev, () => { SFX.unlock(); Voices.resume(); }, { once: true, capture: true }));
-    setTimeout(() => this.autoStart(), 500);
+    // ONE-TAP-THEN-HANDS-FREE: one tap anywhere on the cover unlocks audio
+    // and starts the fully automatic, narrated flow to the end.
+    const begin = () => this.userBegin();
+    this.els.cover.addEventListener('click', begin);
+    document.addEventListener('keydown', (e) => { if (!this.started) begin(); });
+
+    // If the browser happens to allow gesture-free autoplay, start with
+    // ZERO clicks. If it blocks autoplay (most phones/laptops do), we wait
+    // on the cover for that one tap — we never run the story silently.
+    setTimeout(() => this.tryAutoBegin(), 300);
   },
 
   buildSky() {
@@ -93,32 +96,47 @@ const App = {
       b.addEventListener('click', () => this.go(+b.dataset.n)));
   },
 
-  // begins automatically on load; the cover title is narrated, then the
-  // story rolls page-to-page all the way to the end with no input.
-  autoStart() {
+  // Probe whether the browser will let us play audio without a tap.
+  // If yes -> start hands-free. If no -> stay on the cover and wait (no
+  // silent page-flipping).
+  tryAutoBegin() {
+    if (this.started) return;
+    const a = new Audio('assets/audio/cover-0.mp3');
+    const p = a.play();
+    if (!p || !p.then) return;                 // can't probe -> wait for a tap
+    p.then(() => {                             // autoplay allowed!
+      if (this.started) { try { a.pause(); } catch (e) {} return; }
+      this.started = true;
+      SFX.unlock();
+      this._coverAudio = a;
+      a.onended = () => this.beginStory();
+      this._coverTimer = setTimeout(() => this.beginStory(), 8000);
+    }).catch(() => {                           // blocked -> invite the one tap
+      this.els.cover.classList.add('awaiting-tap');
+    });
+  },
+
+  // The single user tap: unlocks audio, narrates the cover, then the story
+  // plays itself all the way to the end.
+  userBegin() {
+    SFX.unlock(); Voices.resume();
     if (this.started) return;
     this.started = true;
-    SFX.unlock();
     SFX.start();
-    const coverLine = SCENES[0].lines[0];
-    this._begun = false;
-    Voices.play('cover-0', coverLine, { onEnd: () => this.beginStory() });
-    // safety net: begin the story even if the cover audio is blocked/slow
-    this._coverTimer = setTimeout(() => this.beginStory(), 6500);
+    if (this._coverAudio) { try { this._coverAudio.pause(); } catch (e) {} this._coverAudio = null; }
+    Voices.play('cover-0', SCENES[0].lines[0], { onEnd: () => this.beginStory() });
+    this._coverTimer = setTimeout(() => this.beginStory(), 8000);
   },
+
   beginStory() {
     if (this._begun) return;
     this._begun = true;
     clearTimeout(this._coverTimer);
     this.els.cover.style.display = 'none';
-    this.go(1);
+    this.go(1);                                // -> auto-reads & auto-advances to the end
   },
-  // kept for the optional on-screen button (also serves as a sound unlock)
-  start() {
-    SFX.unlock(); Voices.resume();
-    if (!this.started) this.autoStart();
-    else this.beginStory();
-  },
+
+  start() { this.userBegin(); },               // legacy alias
 
   go(n) {
     n = Math.max(0, Math.min(SCENES.length - 1, n));
