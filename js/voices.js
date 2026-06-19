@@ -1,19 +1,17 @@
 /* =====================================================================
-   voices.js — plays the characters' voices via the Web Audio API.
+   voices.js — character voices via the Web Audio API.
 
-   WHY Web Audio (not <audio> elements):
-   Browsers block media playback until the user interacts once. With
-   <audio>, every later play() (page turns fire from timers, not the tap)
-   gets re-blocked -> silent pages. With Web Audio, a single tap unlocks
-   the AudioContext, and after that we can play ANY decoded clip at any
-   time with no further permission. So one tap => the whole book narrates
-   itself, page after page, reliably.
+   MOBILE-SAFE DESIGN (esp. iOS Safari):
+   - The AudioContext is created ONLY inside the first user tap. Creating
+     it earlier (at page load) can leave it permanently silent on iOS.
+   - At load we only PREFETCH the raw mp3 bytes (fetch needs no context).
+   - The tap unlocks the context (resume + a silent blip) and then decodes
+     the prefetched bytes into AudioBuffers.
+   - After that one tap, every clip plays via Web Audio with no further
+     gesture, so the whole book narrates itself page-to-page.
 
-   Clips: pre-rendered ElevenLabs mp3s in assets/audio/<id>.mp3, decoded
-   once into AudioBuffers. Falls back to Web Speech if Web Audio is
-   unavailable or a clip can't be decoded.
-
-   To re-render after editing the story:  node tools/generate-audio.js
+   Falls back to Web Speech if Web Audio is unavailable.
+   Re-render clips after editing the story:  node tools/generate-audio.js
    ===================================================================== */
 
 const Voices = (() => {
@@ -22,13 +20,24 @@ const Voices = (() => {
   let manifest = null;
 
   let ctx = null, master = null;
-  const buffers = {};            // id -> AudioBuffer (decoded once)
+  const raw = {};                // id -> ArrayBuffer (prefetched, undecoded)
+  const buffers = {};            // id -> AudioBuffer (decoded after unlock)
   let src = null;                // current BufferSource
   let playing = false, paused = false;
-  let token = 0;                 // invalidates in-flight async plays on stop
+  let token = 0;
   let fbTimer = null;
 
-  /* ---- context (created lazily; unlocked by the first tap) ---- */
+  /* ---- prefetch raw bytes at load (NO AudioContext yet) ---- */
+  function prefetch(id) {
+    if (raw[id] || buffers[id]) return;
+    fetch(DIR + id + '.mp3').then(r => r.arrayBuffer()).then(ab => { raw[id] = ab; }).catch(() => {});
+  }
+  fetch(DIR + 'manifest.json')
+    .then(r => r.ok ? r.json() : [])
+    .then(list => { manifest = new Set(list); list.forEach(prefetch); })
+    .catch(() => { manifest = new Set(); });
+
+  /* ---- context is created ONLY here, inside a user gesture ---- */
   function getCtx() {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -40,40 +49,32 @@ const Voices = (() => {
     }
     return ctx;
   }
-  // called inside a user gesture: resume + a tiny silent blip fully unlocks audio
   function unlock() {
     const c = getCtx();
     if (!c) return;
     if (c.state === 'suspended') c.resume();
-    try {
+    try {                                  // silent blip fully unlocks iOS audio
       const b = c.createBuffer(1, 1, 22050);
       const s = c.createBufferSource();
       s.buffer = b; s.connect(c.destination); s.start(0);
     } catch (e) {}
+    // now that we have a (gesture-created) context, decode everything
+    if (manifest) manifest.forEach(id => load(id).catch(() => {}));
   }
 
-  /* ---- load + decode clips (works even while suspended) ---- */
+  /* ---- decode (needs the context; only after unlock) ---- */
   function load(id) {
     if (buffers[id]) return Promise.resolve(buffers[id]);
     const c = getCtx();
-    if (!c) return Promise.reject('no audio context');
-    return fetch(DIR + id + '.mp3')
-      .then(r => r.arrayBuffer())
-      .then(ab => new Promise((res, rej) => {
-        const ok = (buf) => { buffers[id] = buf; res(buf); };
-        const p = c.decodeAudioData(ab, ok, rej);   // callback form for old Safari
-        if (p && p.then) p.then(ok, rej);
-      }));
+    if (!c) return Promise.reject('no ctx');
+    const decode = (ab) => new Promise((res, rej) => {
+      const ok = (buf) => { buffers[id] = buf; delete raw[id]; res(buf); };
+      const p = c.decodeAudioData(ab, ok, rej);          // callback form for old Safari
+      if (p && p.then) p.then(ok, rej);
+    });
+    if (raw[id]) return decode(raw[id].slice(0));         // copy: decode detaches the buffer
+    return fetch(DIR + id + '.mp3').then(r => r.arrayBuffer()).then(ab => decode(ab));
   }
-  function preloadAll() {
-    if (!manifest) return;
-    manifest.forEach(id => load(id).catch(() => {}));
-  }
-
-  fetch(DIR + 'manifest.json')
-    .then(r => r.ok ? r.json() : [])
-    .then(list => { manifest = new Set(list); preloadAll(); })
-    .catch(() => { manifest = new Set(); });
 
   /* ---------- Web Speech fallback ---------- */
   let sysVoices = [];
@@ -103,19 +104,17 @@ const Voices = (() => {
 
   /* ---------- main entry ---------- */
   function play(id, line, { onStart, onEnd } = {}) {
-    const my = ++token;            // this call's identity
+    const my = ++token;
     stopInternal();
     if (!enabled) { onStart && onStart(); fbTimer = setTimeout(() => onEnd && onEnd(), 50); return; }
+    if (manifest && manifest.size && !manifest.has(id)) { onStart && onStart(); return speakSys(line, onEnd); }
 
-    if (manifest && manifest.size && !manifest.has(id)) {  // unknown clip
-      onStart && onStart(); return speakSys(line, onEnd);
-    }
     const c = getCtx();
     if (!c) { onStart && onStart(); return speakSys(line, onEnd); }
     if (c.state === 'suspended') c.resume();
 
     load(id).then(buf => {
-      if (my !== token) return;                 // superseded by a newer play/stop
+      if (my !== token) return;
       const s = c.createBufferSource();
       s.buffer = buf;
       const g = c.createGain(); g.gain.value = 1;
@@ -126,7 +125,7 @@ const Voices = (() => {
       src = s; playing = true; paused = false;
       onStart && onStart();
       try { s.start(0); } catch (e) { finish(); }
-    }).catch(() => {                             // decode/network failed -> speech
+    }).catch(() => {
       if (my !== token) return;
       onStart && onStart(); speakSys(line, onEnd);
     });
