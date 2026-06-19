@@ -3,7 +3,29 @@
   publish = "."
   command = ""
 
-# Make sure audio + json are served with sensible caching
+# Always revalidate the page + code so a deploy is picked up immediately
+# (prevents the browser from running a stale, cached version of the app).
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Audio clips are versioned by name and safe to cache for a while
 [[headers]]
   for = "/assets/audio/*"
   [headers.values]
