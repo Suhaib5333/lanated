@@ -63,6 +63,14 @@ const App = {
     if (!Voices.isSupported()) this.els.sound.classList.add('is-off');
 
     this.render(false);   // render cover behind overlay
+
+    // ZERO-CLICK: begin the whole story automatically a moment after load.
+    // (If the browser allows audio autoplay it plays with sound; if not,
+    //  the story still flows visually and any incidental interaction
+    //  unlocks the sound.)
+    ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+      document.addEventListener(ev, () => { SFX.unlock(); Voices.resume(); }, { once: true, capture: true }));
+    setTimeout(() => this.autoStart(), 500);
   },
 
   buildSky() {
@@ -85,12 +93,31 @@ const App = {
       b.addEventListener('click', () => this.go(+b.dataset.n)));
   },
 
-  start() {
+  // begins automatically on load; the cover title is narrated, then the
+  // story rolls page-to-page all the way to the end with no input.
+  autoStart() {
+    if (this.started) return;
     this.started = true;
     SFX.unlock();
     SFX.start();
+    const coverLine = SCENES[0].lines[0];
+    this._begun = false;
+    Voices.play('cover-0', coverLine, { onEnd: () => this.beginStory() });
+    // safety net: begin the story even if the cover audio is blocked/slow
+    this._coverTimer = setTimeout(() => this.beginStory(), 6500);
+  },
+  beginStory() {
+    if (this._begun) return;
+    this._begun = true;
+    clearTimeout(this._coverTimer);
     this.els.cover.style.display = 'none';
     this.go(1);
+  },
+  // kept for the optional on-screen button (also serves as a sound unlock)
+  start() {
+    SFX.unlock(); Voices.resume();
+    if (!this.started) this.autoStart();
+    else this.beginStory();
   },
 
   go(n) {

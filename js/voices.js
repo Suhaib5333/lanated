@@ -67,19 +67,30 @@ const Voices = (() => {
 
     const a = new Audio(AUDIO_DIR + id + '.mp3');
     current = a;
-    let started = false;
+    let started = false, done = false;
+    const finish = () => { if (done || current !== a) return; done = true; current = null; onEnd && onEnd(); };
     a.onplay  = () => { started = true; onStart && onStart(); };
-    a.onended = () => { if (current === a) current = null; onEnd && onEnd(); };
-    a.onerror = () => {                       // file missing/blocked -> fallback
+    a.onended = finish;
+    a.onerror = () => {                       // file truly missing -> speech fallback
+      if (started) return finish();
       if (current === a) current = null;
-      if (!started) { onStart && onStart(); speakSys(line, onEnd); } else { onEnd && onEnd(); }
+      onStart && onStart(); speakSys(line, onEnd);
     };
     const pr = a.play();
-    if (pr && pr.catch) pr.catch(() => { /* autoplay blocked: handled by onerror/next gesture */ });
+    if (pr && pr.then) pr.then(() => {}).catch(() => {
+      // autoplay blocked by the browser: keep the story flowing on a timer
+      // (sound will join in the moment any interaction unlocks it)
+      if (started || done) return;
+      onStart && onStart();
+      const dur = (isFinite(a.duration) && a.duration > 0.2) ? a.duration : 3.2;
+      fbTimer = setTimeout(finish, dur * 1000 + 200);
+    });
   }
 
+  let fbTimer = null;
   function stop() {
     paused = false;
+    clearTimeout(fbTimer);
     if (current) { try { current.pause(); current.currentTime = 0; } catch (e) {} current = null; }
     if (window.speechSynthesis) speechSynthesis.cancel();
   }
