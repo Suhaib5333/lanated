@@ -104,35 +104,32 @@ const App = {
     const a = new Audio('assets/audio/cover-0.mp3');
     const p = a.play();
     if (!p || !p.then) return;                 // can't probe -> wait for a tap
-    p.then(() => {                             // autoplay allowed!
-      if (this.started) { try { a.pause(); } catch (e) {} return; }
-      this.started = true;
-      SFX.unlock();
-      this._coverAudio = a;
-      a.onended = () => this.beginStory();
-      this._coverTimer = setTimeout(() => this.beginStory(), 8000);
+    p.then(() => {                             // autoplay allowed -> just start
+      try { a.pause(); } catch (e) {}
+      SFX.unlock(); Voices.unlock();
+      this.beginStory();
     }).catch(() => {                           // blocked -> invite the one tap
       this.els.cover.classList.add('awaiting-tap');
     });
   },
 
-  // The single user tap: unlocks audio, narrates the cover, then the story
-  // plays itself all the way to the end.
+  // The single user tap: unlock BOTH audio engines (inside the gesture, so
+  // every later page can play with no further taps), then start.
   userBegin() {
-    SFX.unlock(); Voices.resume();
+    SFX.unlock(); Voices.unlock();
     if (this.started) return;
-    this.started = true;
     SFX.start();
-    if (this._coverAudio) { try { this._coverAudio.pause(); } catch (e) {} this._coverAudio = null; }
-    Voices.play('cover-0', SCENES[0].lines[0], { onEnd: () => this.beginStory() });
-    this._coverTimer = setTimeout(() => this.beginStory(), 8000);
+    this.beginStory();
   },
 
+  // Closes the cover immediately and rolls the story to the end on its own.
   beginStory() {
     if (this._begun) return;
     this._begun = true;
+    this.started = true;
     clearTimeout(this._coverTimer);
-    this.els.cover.style.display = 'none';
+    if (this._coverAudio) { try { this._coverAudio.pause(); } catch (e) {} this._coverAudio = null; }
+    this.els.cover.style.display = 'none';     // <- popup closes right away
     this.go(1);                                // -> auto-reads & auto-advances to the end
   },
 

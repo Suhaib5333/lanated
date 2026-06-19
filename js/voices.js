@@ -1,28 +1,78 @@
 /* =====================================================================
-   voices.js — plays the characters' voices.
+   voices.js — plays the characters' voices via the Web Audio API.
 
-   PRIMARY:  pre-rendered ElevenLabs clips in assets/audio/<id>.mp3
-             (Lana = Jessica, pitched up a touch / Ted = Brian, deepened
-             into a teddy-bear rumble / Storyteller = George).
-             Pre-rendered means: no API key in the app, instant playback,
-             works offline.
+   WHY Web Audio (not <audio> elements):
+   Browsers block media playback until the user interacts once. With
+   <audio>, every later play() (page turns fire from timers, not the tap)
+   gets re-blocked -> silent pages. With Web Audio, a single tap unlocks
+   the AudioContext, and after that we can play ANY decoded clip at any
+   time with no further permission. So one tap => the whole book narrates
+   itself, page after page, reliably.
 
-   FALLBACK: if a clip is missing or won't load, we use the browser's
-             built-in Web Speech voices, shaped to match each character.
+   Clips: pre-rendered ElevenLabs mp3s in assets/audio/<id>.mp3, decoded
+   once into AudioBuffers. Falls back to Web Speech if Web Audio is
+   unavailable or a clip can't be decoded.
 
    To re-render after editing the story:  node tools/generate-audio.js
    ===================================================================== */
 
 const Voices = (() => {
-  const AUDIO_DIR = 'assets/audio/';
+  const DIR = 'assets/audio/';
   let enabled = true;
-  let current = null;          // current HTMLAudioElement
-  let manifest = null;         // Set of available ids (optional)
+  let manifest = null;
 
-  // load the manifest so we know which clips exist (best-effort)
-  fetch(AUDIO_DIR + 'manifest.json')
+  let ctx = null, master = null;
+  const buffers = {};            // id -> AudioBuffer (decoded once)
+  let src = null;                // current BufferSource
+  let playing = false, paused = false;
+  let token = 0;                 // invalidates in-flight async plays on stop
+  let fbTimer = null;
+
+  /* ---- context (created lazily; unlocked by the first tap) ---- */
+  function getCtx() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 1;
+      master.connect(ctx.destination);
+    }
+    return ctx;
+  }
+  // called inside a user gesture: resume + a tiny silent blip fully unlocks audio
+  function unlock() {
+    const c = getCtx();
+    if (!c) return;
+    if (c.state === 'suspended') c.resume();
+    try {
+      const b = c.createBuffer(1, 1, 22050);
+      const s = c.createBufferSource();
+      s.buffer = b; s.connect(c.destination); s.start(0);
+    } catch (e) {}
+  }
+
+  /* ---- load + decode clips (works even while suspended) ---- */
+  function load(id) {
+    if (buffers[id]) return Promise.resolve(buffers[id]);
+    const c = getCtx();
+    if (!c) return Promise.reject('no audio context');
+    return fetch(DIR + id + '.mp3')
+      .then(r => r.arrayBuffer())
+      .then(ab => new Promise((res, rej) => {
+        const ok = (buf) => { buffers[id] = buf; res(buf); };
+        const p = c.decodeAudioData(ab, ok, rej);   // callback form for old Safari
+        if (p && p.then) p.then(ok, rej);
+      }));
+  }
+  function preloadAll() {
+    if (!manifest) return;
+    manifest.forEach(id => load(id).catch(() => {}));
+  }
+
+  fetch(DIR + 'manifest.json')
     .then(r => r.ok ? r.json() : [])
-    .then(list => { manifest = new Set(list); })
+    .then(list => { manifest = new Set(list); preloadAll(); })
     .catch(() => { manifest = new Set(); });
 
   /* ---------- Web Speech fallback ---------- */
@@ -35,21 +85,17 @@ const Voices = (() => {
   }
   const SYS = {
     lana:     { hints: ['zira', 'samantha', 'female', 'aria', 'jenny', 'hazel'], pitch: 2.0, rate: 1.12 },
-    ted:      { hints: ['david', 'mark', 'male', 'daniel', 'guy', 'george'],     pitch: 0.35, rate: 0.82 },
+    ted:      { hints: ['david', 'mark', 'male', 'daniel', 'guy', 'george'],     pitch: 0.5, rate: 1.0 },
     narrator: { hints: ['aria', 'jenny', 'samantha', 'zira', 'hazel'],           pitch: 1.05, rate: 0.96 },
   };
-  function pickSys(hints) {
-    const en = sysVoices.filter(v => /^en/i.test(v.lang));
-    const pool = en.length ? en : sysVoices;
-    for (const h of hints) { const m = pool.find(v => v.name.toLowerCase().includes(h)); if (m) return m; }
-    return pool[0] || null;
-  }
   function speakSys(line, onEnd) {
     if (!window.speechSynthesis) { onEnd && onEnd(); return; }
     const p = SYS[line.who] || SYS.narrator;
+    const en = sysVoices.filter(v => /^en/i.test(v.lang));
+    const pool = en.length ? en : sysVoices;
     const u = new SpeechSynthesisUtterance(
       line.text.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/\([^)]*\)/g, ' ').trim());
-    const v = pickSys(p.hints); if (v) u.voice = v;
+    for (const h of p.hints) { const m = pool.find(v => v.name.toLowerCase().includes(h)); if (m) { u.voice = m; break; } }
     u.pitch = p.pitch; u.rate = p.rate;
     u.onend = u.onerror = () => onEnd && onEnd();
     speechSynthesis.speak(u);
@@ -57,62 +103,60 @@ const Voices = (() => {
 
   /* ---------- main entry ---------- */
   function play(id, line, { onStart, onEnd } = {}) {
-    stop();
-    if (!enabled) { onStart && onStart(); setTimeout(() => onEnd && onEnd(), 50); return; }
+    const my = ++token;            // this call's identity
+    stopInternal();
+    if (!enabled) { onStart && onStart(); fbTimer = setTimeout(() => onEnd && onEnd(), 50); return; }
 
-    // if we know the clip is absent, skip straight to the fallback
-    if (manifest && manifest.size && !manifest.has(id)) {
+    if (manifest && manifest.size && !manifest.has(id)) {  // unknown clip
       onStart && onStart(); return speakSys(line, onEnd);
     }
+    const c = getCtx();
+    if (!c) { onStart && onStart(); return speakSys(line, onEnd); }
+    if (c.state === 'suspended') c.resume();
 
-    const a = new Audio(AUDIO_DIR + id + '.mp3');
-    current = a;
-    let started = false, done = false;
-    const finish = () => { if (done || current !== a) return; done = true; current = null; onEnd && onEnd(); };
-    a.onplay  = () => { started = true; onStart && onStart(); };
-    a.onended = finish;
-    a.onerror = () => {                       // file truly missing -> speech fallback
-      if (started) return finish();
-      if (current === a) current = null;
-      onStart && onStart(); speakSys(line, onEnd);
-    };
-    const pr = a.play();
-    if (pr && pr.then) pr.then(() => {}).catch(() => {
-      // autoplay blocked by the browser: keep the story flowing on a timer
-      // (sound will join in the moment any interaction unlocks it)
-      if (started || done) return;
+    load(id).then(buf => {
+      if (my !== token) return;                 // superseded by a newer play/stop
+      const s = c.createBufferSource();
+      s.buffer = buf;
+      const g = c.createGain(); g.gain.value = 1;
+      s.connect(g); g.connect(master);
+      let done = false;
+      const finish = () => { if (done || my !== token) return; done = true; playing = false; src = null; onEnd && onEnd(); };
+      s.onended = finish;
+      src = s; playing = true; paused = false;
       onStart && onStart();
-      const dur = (isFinite(a.duration) && a.duration > 0.2) ? a.duration : 3.2;
-      fbTimer = setTimeout(finish, dur * 1000 + 200);
+      try { s.start(0); } catch (e) { finish(); }
+    }).catch(() => {                             // decode/network failed -> speech
+      if (my !== token) return;
+      onStart && onStart(); speakSys(line, onEnd);
     });
   }
 
-  let fbTimer = null;
-  function stop() {
-    paused = false;
+  function stopInternal() {
     clearTimeout(fbTimer);
-    if (current) { try { current.pause(); current.currentTime = 0; } catch (e) {} current = null; }
+    if (src) { try { src.onended = null; src.stop(0); } catch (e) {} src = null; }
+    playing = false; paused = false;
     if (window.speechSynthesis) speechSynthesis.cancel();
   }
+  function stop() { token++; stopInternal(); }
 
-  let paused = false;
   function pause() {
-    if (current && !current.paused) { try { current.pause(); } catch (e) {} paused = true; }
+    if (playing && !paused && ctx) { ctx.suspend(); paused = true; }
     else if (window.speechSynthesis && speechSynthesis.speaking) { speechSynthesis.pause(); paused = true; }
   }
   function resume() {
-    if (current && current.paused) { current.play().catch(() => {}); paused = false; }
+    if (playing && paused && ctx) { ctx.resume(); paused = false; }
     else if (window.speechSynthesis && speechSynthesis.paused) { speechSynthesis.resume(); paused = false; }
   }
   function isPaused() { return paused; }
   function isActive() {
-    if (current && !current.paused) return true;
+    if (playing && !paused) return true;
     return !!(window.speechSynthesis && speechSynthesis.speaking && !speechSynthesis.paused);
   }
 
-  function setEnabled(v) { enabled = v; if (!v) stop(); }
+  function setEnabled(v) { enabled = v; if (!v) stop(); else if (master) master.gain.value = 1; }
   function isEnabled() { return enabled; }
-  function isSupported() { return true; }   // audio always available
+  function isSupported() { return true; }
 
-  return { play, stop, pause, resume, isPaused, isActive, setEnabled, isEnabled, isSupported };
+  return { play, stop, pause, resume, isPaused, isActive, unlock, setEnabled, isEnabled, isSupported };
 })();
